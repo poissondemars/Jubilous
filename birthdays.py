@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import re
 from datetime import date
-from typing import Optional, Tuple
 
 
 _DATE_RE = re.compile(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$")
 
 
-def parse_birthday_date(text: str) -> Tuple[int, int, Optional[int]]:
+def parse_birthday_date(text: str) -> tuple[int, int, int | None]:
     """Parses 'DD-MM' or 'DD-MM-YYYY' into (month, day, year|None).
 
     Raises ValueError if the text doesn't match the expected format or

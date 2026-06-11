@@ -36,3 +36,22 @@ def parse_birthday_date(text: str) -> tuple[int, int, int | None]:
         raise ValueError(f"Invalid date: {text!r} ({exc})") from exc
 
     return month, day, year
+
+
+def _safe_date(year: int, month: int, day: int) -> date:
+    """Builds a date, treating Feb 29 in a non-leap year as Feb 28."""
+    if month == 2 and day == 29:
+        try:
+            return date(year, 2, 29)
+        except ValueError:
+            return date(year, 2, 28)
+    return date(year, month, day)
+
+
+def days_until(today: date, month: int, day: int) -> int:
+    """Returns the number of days from `today` until the next occurrence
+    of the given month/day (0 if it's today, otherwise 1-365)."""
+    candidate = _safe_date(today.year, month, day)
+    if candidate < today:
+        candidate = _safe_date(today.year + 1, month, day)
+    return (candidate - today).days

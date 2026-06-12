@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from zoneinfo import available_timezones
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -184,3 +185,48 @@ async def cmd_upcoming(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         lines.append(f"  • {entry}")
 
     await update.message.reply_text("\n".join(lines))
+
+
+SETTIMEZONE_USAGE = "Usage: /settimezone <IANA tz name>\nExample: /settimezone Europe/Berlin"
+SETWINDOW_USAGE = "The number of days must be an integer between 1 and 365.\nUsage: /setwindow <days>"
+
+
+async def cmd_settimezone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = context.bot_data["conn"]
+    user_id = update.effective_user.id
+    db.get_or_create_user(conn, user_id)
+
+    args = context.args
+    if len(args) != 1:
+        await update.message.reply_text(SETTIMEZONE_USAGE)
+        return
+
+    tz_name = args[0]
+    if tz_name not in available_timezones():
+        await update.message.reply_text(f"⚠️ Unknown timezone: {tz_name!r}. Use an IANA name, e.g. Europe/Berlin")
+        return
+
+    db.update_timezone(conn, user_id, tz_name)
+    await update.message.reply_text(f"✅ Timezone set to {tz_name}")
+
+
+async def cmd_setwindow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = context.bot_data["conn"]
+    user_id = update.effective_user.id
+    db.get_or_create_user(conn, user_id)
+
+    args = context.args
+    if len(args) != 1:
+        await update.message.reply_text(SETWINDOW_USAGE)
+        return
+
+    try:
+        days = int(args[0])
+        if not (1 <= days <= 365):
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text(SETWINDOW_USAGE)
+        return
+
+    db.update_lookahead_days(conn, user_id, days)
+    await update.message.reply_text(f"✅ Lookahead window set to {days} days")

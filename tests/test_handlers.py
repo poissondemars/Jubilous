@@ -267,3 +267,77 @@ async def test_cmd_upcoming_explicit_window_overrides_default(conn):
 
     reply_text = update.message.reply_text.call_args[0][0]
     assert "TodayPerson" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_settimezone_valid(conn):
+    update = make_update()
+    context = make_context(conn, args=["Europe/Berlin"])
+
+    await handlers.cmd_settimezone(update, context)
+
+    user = db.get_user(conn, 123)
+    assert user.timezone == "Europe/Berlin"
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "Europe/Berlin" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_settimezone_invalid(conn):
+    update = make_update()
+    context = make_context(conn, args=["Not/AZone"])
+
+    await handlers.cmd_settimezone(update, context)
+
+    user = db.get_user(conn, 123)
+    assert user.timezone == "UTC"
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "⚠️" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_settimezone_missing_arg_replies_with_usage(conn):
+    update = make_update()
+    context = make_context(conn, args=[])
+
+    await handlers.cmd_settimezone(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "Usage" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_setwindow_valid(conn):
+    update = make_update()
+    context = make_context(conn, args=["14"])
+
+    await handlers.cmd_setwindow(update, context)
+
+    user = db.get_user(conn, 123)
+    assert user.lookahead_days == 14
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "14" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_setwindow_out_of_range_replies_with_error(conn):
+    update = make_update()
+    context = make_context(conn, args=["400"])
+
+    await handlers.cmd_setwindow(update, context)
+
+    user = db.get_user(conn, 123)
+    assert user.lookahead_days == 7  # unchanged default
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "1 and 365" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_setwindow_non_numeric_replies_with_error(conn):
+    update = make_update()
+    context = make_context(conn, args=["abc"])
+
+    await handlers.cmd_setwindow(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "1 and 365" in reply_text

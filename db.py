@@ -77,3 +77,67 @@ def update_lookahead_days(conn: sqlite3.Connection, user_id: int, days: int) -> 
 def update_last_sent_date(conn: sqlite3.Connection, user_id: int, date_str: str) -> None:
     conn.execute("UPDATE users SET last_sent_date = ? WHERE user_id = ?", (date_str, user_id))
     conn.commit()
+
+
+_BIRTHDAY_COLUMNS = "id, user_id, name, month, day, year, notes"
+
+
+def add_birthday(
+    conn: sqlite3.Connection,
+    user_id: int,
+    name: str,
+    month: int,
+    day: int,
+    year: int | None,
+    notes: str | None,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO birthdays (user_id, name, month, day, year, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, name, month, day, year, notes),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_user_birthdays(conn: sqlite3.Connection, user_id: int) -> list[Birthday]:
+    rows = conn.execute(
+        f"SELECT {_BIRTHDAY_COLUMNS} FROM birthdays WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    return [Birthday(*row) for row in rows]
+
+
+def get_birthday(conn: sqlite3.Connection, birthday_id: int, user_id: int) -> Birthday | None:
+    row = conn.execute(
+        f"SELECT {_BIRTHDAY_COLUMNS} FROM birthdays WHERE id = ? AND user_id = ?",
+        (birthday_id, user_id),
+    ).fetchone()
+    return Birthday(*row) if row else None
+
+
+def update_birthday(
+    conn: sqlite3.Connection,
+    birthday_id: int,
+    user_id: int,
+    name: str,
+    month: int,
+    day: int,
+    year: int | None,
+    notes: str | None,
+) -> bool:
+    cur = conn.execute(
+        "UPDATE birthdays SET name = ?, month = ?, day = ?, year = ?, notes = ? "
+        "WHERE id = ? AND user_id = ?",
+        (name, month, day, year, notes, birthday_id, user_id),
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def delete_birthday(conn: sqlite3.Connection, birthday_id: int, user_id: int) -> bool:
+    cur = conn.execute(
+        "DELETE FROM birthdays WHERE id = ? AND user_id = ?",
+        (birthday_id, user_id),
+    )
+    conn.commit()
+    return cur.rowcount > 0

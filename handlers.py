@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
 import db
-from birthdays import parse_birthday_date
+from birthdays import age_on_next_birthday, days_until, parse_birthday_date
 
 
 WELCOME_TEXT = (
@@ -50,3 +52,31 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     date_str = f"{day:02d}-{month:02d}" + (f"-{year}" if year else "")
     await update.message.reply_text(f'✅ Added "{name}" ({date_str}) — id #{birthday_id}')
+
+
+async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = context.bot_data["conn"]
+    user_id = update.effective_user.id
+    db.get_or_create_user(conn, user_id)
+
+    birthdays = db.get_user_birthdays(conn, user_id)
+    if not birthdays:
+        await update.message.reply_text("You haven't added any birthdays yet. Use /add to get started.")
+        return
+
+    today = date.today()
+    birthdays.sort(key=lambda b: days_until(today, b.month, b.day))
+
+    lines = []
+    for b in birthdays:
+        date_str = f"{b.day:02d}-{b.month:02d}" + (f"-{b.year}" if b.year else "")
+        age = age_on_next_birthday(b.year, b.month, b.day, today)
+
+        line = f"#{b.id} {b.name} — {date_str}"
+        if age is not None:
+            line += f" (turns {age})"
+        if b.notes:
+            line += f" — {b.notes}"
+        lines.append(line)
+
+    await update.message.reply_text("\n".join(lines))

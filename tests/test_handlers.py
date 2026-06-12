@@ -92,3 +92,30 @@ async def test_cmd_add_missing_args_replies_with_usage(conn):
     assert db.get_user_birthdays(conn, 123) == []
     reply_text = update.message.reply_text.call_args[0][0]
     assert "Usage" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_list_empty(conn):
+    update = make_update()
+    context = make_context(conn)
+
+    await handlers.cmd_list(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "haven't added" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_list_shows_entries_sorted_by_upcoming(conn):
+    db.get_or_create_user(conn, 123)
+    db.add_birthday(conn, 123, "Later", 12, 25, None, None)
+    db.add_birthday(conn, 123, "Sooner", 6, 12, 1990, "close friend")
+
+    update = make_update()
+    context = make_context(conn)
+
+    await handlers.cmd_list(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert reply_text.index("Sooner") < reply_text.index("Later")
+    assert "close friend" in reply_text

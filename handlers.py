@@ -136,3 +136,51 @@ async def cmd_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f'✅ Updated #{birthday_id}: "{name}" ({date_str})')
     else:
         await update.message.reply_text(f"Birthday #{birthday_id} not found.")
+
+
+UPCOMING_USAGE = "Usage: /upcoming [days] (days must be a positive number)"
+
+
+async def cmd_upcoming(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = context.bot_data["conn"]
+    user_id = update.effective_user.id
+    user = db.get_or_create_user(conn, user_id)
+
+    args = context.args
+    if args:
+        try:
+            window_days = int(args[0])
+            if window_days < 1:
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text(UPCOMING_USAGE)
+            return
+    else:
+        window_days = user.lookahead_days
+
+    today = date.today()
+    birthdays = db.get_user_birthdays(conn, user_id)
+
+    entries: list[tuple[int, str]] = []
+    for b in birthdays:
+        delta = days_until(today, b.month, b.day)
+        if delta > window_days:
+            continue
+
+        date_str = f"{b.day:02d}-{b.month:02d}"
+        if delta == 0:
+            entries.append((delta, f"{b.name} — today ({date_str})"))
+        else:
+            plural = "s" if delta != 1 else ""
+            entries.append((delta, f"{b.name} — in {delta} day{plural} ({date_str})"))
+
+    if not entries:
+        await update.message.reply_text(f"No birthdays in the next {window_days} days.")
+        return
+
+    entries.sort(key=lambda item: item[0])
+    lines = [f"🎂 Birthdays in the next {window_days} days:"]
+    for _, entry in entries:
+        lines.append(f"  • {entry}")
+
+    await update.message.reply_text("\n".join(lines))

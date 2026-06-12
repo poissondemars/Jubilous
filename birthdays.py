@@ -55,3 +55,16 @@ def days_until(today: date, month: int, day: int) -> int:
     if candidate < today:
         candidate = _safe_date(today.year + 1, month, day)
     return (candidate - today).days
+
+
+def age_on_next_birthday(year: int | None, month: int, day: int, today: date) -> int | None:
+    """Returns the age the person turns on their next occurrence of
+    month/day, or None if `year` (birth year) is unknown."""
+    if year is None:
+        return None
+
+    candidate = _safe_date(today.year, month, day)
+    next_age = today.year - year
+    if candidate < today:
+        next_age += 1
+    return next_age

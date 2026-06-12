@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from birthdays import days_until, parse_birthday_date
+from birthdays import age_on_next_birthday, days_until, parse_birthday_date
 
 
 def test_parse_date_without_year():
@@ -50,3 +50,23 @@ def test_days_until_wraps_to_next_year():
 def test_days_until_feb29_in_non_leap_year_treated_as_feb28():
     today = date(2025, 2, 27)  # 2025 is not a leap year
     assert days_until(today, 2, 29) == 1
+
+
+def test_age_on_next_birthday_before_birthday_this_year():
+    today = date(2026, 6, 11)
+    assert age_on_next_birthday(1990, 6, 20, today) == 36
+
+
+def test_age_on_next_birthday_after_birthday_this_year():
+    today = date(2026, 6, 11)
+    assert age_on_next_birthday(1990, 1, 1, today) == 37
+
+
+def test_age_on_next_birthday_today_is_birthday():
+    today = date(2026, 6, 11)
+    assert age_on_next_birthday(1990, 6, 11, today) == 36
+
+
+def test_age_on_next_birthday_unknown_year_returns_none():
+    today = date(2026, 6, 11)
+    assert age_on_next_birthday(None, 6, 20, today) is None

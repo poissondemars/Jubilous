@@ -119,3 +119,90 @@ async def test_cmd_list_shows_entries_sorted_by_upcoming(conn):
     reply_text = update.message.reply_text.call_args[0][0]
     assert reply_text.index("Sooner") < reply_text.index("Later")
     assert "close friend" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_delete_existing(conn):
+    db.get_or_create_user(conn, 123)
+    birthday_id = db.add_birthday(conn, 123, "Mom", 3, 14, 1965, None)
+
+    update = make_update()
+    context = make_context(conn, args=[str(birthday_id)])
+
+    await handlers.cmd_delete(update, context)
+
+    assert db.get_user_birthdays(conn, 123) == []
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "Deleted" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_delete_not_found(conn):
+    db.get_or_create_user(conn, 123)
+
+    update = make_update()
+    context = make_context(conn, args=["999"])
+
+    await handlers.cmd_delete(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "not found" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_delete_invalid_id_replies_with_usage(conn):
+    db.get_or_create_user(conn, 123)
+
+    update = make_update()
+    context = make_context(conn, args=["abc"])
+
+    await handlers.cmd_delete(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "Usage" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_edit_existing(conn):
+    db.get_or_create_user(conn, 123)
+    birthday_id = db.add_birthday(conn, 123, "Mom", 3, 14, 1965, None)
+
+    update = make_update()
+    context = make_context(conn, args=[str(birthday_id), "Mother", "15-03-1966", "updated", "notes"])
+
+    await handlers.cmd_edit(update, context)
+
+    birthdays = db.get_user_birthdays(conn, 123)
+    assert birthdays[0].name == "Mother"
+    assert birthdays[0].day == 15
+    assert birthdays[0].notes == "updated notes"
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "Updated" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_edit_not_found(conn):
+    db.get_or_create_user(conn, 123)
+
+    update = make_update()
+    context = make_context(conn, args=["999", "Name", "01-01"])
+
+    await handlers.cmd_edit(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "not found" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_cmd_edit_invalid_date_replies_with_error(conn):
+    db.get_or_create_user(conn, 123)
+    birthday_id = db.add_birthday(conn, 123, "Mom", 3, 14, 1965, None)
+
+    update = make_update()
+    context = make_context(conn, args=[str(birthday_id), "Mom", "not-a-date"])
+
+    await handlers.cmd_edit(update, context)
+
+    reply_text = update.message.reply_text.call_args[0][0]
+    assert "⚠️" in reply_text
